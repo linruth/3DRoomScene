@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+
+<html>
+	<head>
+
+		<link rel="stylesheet" type="text/css" href="roomscene.css">
+		<script src="js/three.min.js"></script>
+		<script src="js/OrbitControls.js"></script>
+		<script src="js/MTLLoader.js"></script>
+		<script src="js/OBJLoader.js"></script>
+
+	</head>
+
+	<body>
+
+		<div id="infoBlurb">Doube click on sofa to get popup modal. Click on buttons to see which flooring from BD goes well with this sofa!</div>
+		<div id="buttons_materials" class="bwrap">
+			<button id="yanchi">Yanchi Bamboo</button> 
+			<button id="lamton">Lamton Laminate</button> 
+			<button id="kaska">Kaska Grey</button>
+		</div>
+
+		<div id="furnitureModal" class="modal">
+			<div class="furnitureModalContent">
+				<span class="furnitureModalClose">x</span>
+				<p>Another CTA? For furniture specifically.</p>
+			</div>
+		</div>
+
+		<div class="infoBoxModal">
+			<a id="skuLink" href="https://www.builddirect.com/p/p--15000100"><div id="skuTitle">Yanchi Bamboo</div></a>
+			<div id="skuPrice">From $2.49 /sq ft</div>
+			<button id="sampleButton" class="bd-button--blue">Get Free Sample</button>
+		</div>
+
+		<script>
+			var scene, renderer, camera, controls;
+			var targetList = [];
+			var floor;
+			var textureLoader;
+			var width = window.innerWidth;
+			var height = window.innerHeight;
+
+			var modal = document.getElementById('furnitureModal');
+			var furnitureModalClose = document.getElementsByClassName("furnitureModalClose")[0];
+
+			init();
+			animate();
+
+			function init() {
+
+				renderer = new THREE.WebGLRenderer({antialias: true});
+				renderer.setSize(width,height);
+				renderer.setClearColor(0xffffff);  
+
+				camera = new THREE.PerspectiveCamera (45, width/height, 1, 10000);
+				camera.position.y = 48;
+				camera.position.z = 120;
+				camera.lookAt (new THREE.Vector3(0,0,0));
+
+				scene = new THREE.Scene();
+
+				controls = new THREE.OrbitControls (camera, renderer.domElement);
+
+				// Flooring
+
+				var floorMat = new THREE.MeshPhongMaterial( {
+					color: 0xffffff,
+					metalness: 0.2,
+					bumpScale: 0.10,
+				});
+
+				textureLoader = new THREE.TextureLoader();
+				textureLoader.load( "textures/text1.jpg", function( map ) {
+					map.wrapS = THREE.RepeatWrapping;
+					map.wrapT = THREE.RepeatWrapping;
+					map.anisotropy = 4;
+					//map.repeat.set( 0.5, 0.5);
+					floorMat.map = map;
+					floorMat.needsUpdate = true;
+				} );
+
+				textureLoader.load( "textures/bump1.jpg", function( map ) {
+					map.wrapS = THREE.RepeatWrapping;
+					map.wrapT = THREE.RepeatWrapping;
+					map.anisotropy = 4;
+					//map.repeat.set( 0.5, 0.5);
+					floorMat.bumpMap = map;
+					floorMat.needsUpdate = true;
+				} );
+
+				var cube = new THREE.CubeGeometry( 100, 1, 100);
+				floor = new THREE.Mesh(cube, floorMat );
+				scene.add( floor );
+
+		    	// Lighting
+		    
+			    var pointLight = new THREE.PointLight (0xffffff);
+			    pointLight.position.set (0,300,200);
+			    scene.add (pointLight);
+			    var ambientLight = new THREE.AmbientLight (0x111111);
+			    scene.add(ambientLight);
+
+			    // Sofa Object
+
+			    var mtlLoader = new THREE.MTLLoader();
+			    mtlLoader.setBaseUrl('obj/');
+			    mtlLoader.setPath('obj/');
+			    mtlLoader.load('sofa.mtl', function(materials) {
+			    	materials.preload();
+			    	var objLoader = new THREE.OBJLoader();
+			    	objLoader.setMaterials(materials);
+			    	objLoader.setPath('obj/');
+			    	objLoader.load('sofa.obj', function(object) {
+			    		object.name = "Blue sofa"
+			    		targetList.push(object);
+			    		object.position.set(5, 0, -10);
+			    		object.scale.set (0.15,0.15,0.15);
+			    		scene.add(object);
+			    	});
+			    });
+
+			    document.body.appendChild(renderer.domElement);
+
+			    document.addEventListener( 'dblclick', onDocumentDblClick, false );
+			}
+
+			function onDocumentDblClick(event) {
+				var raycaster = new THREE.Raycaster();
+				var mouse = new THREE.Vector2();
+				mouse.x = ( event.clientX / window.innerWidth) * 2 - 1;
+				mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+				raycaster.setFromCamera(mouse, camera);
+
+				// calculate objects intersecting the picking ray
+				var intersects = raycaster.intersectObjects(targetList, true);
+
+				// if there is one (or more) intersections
+				if ( intersects.length > 0 ){
+					console.log("Hit @ " + intersects[0].point);
+					if ( intersects[ 0 ].object.parent.name == "Blue sofa"){
+						console.log("Blue sofa double clicked!");
+						modal.style.display = "block";
+					}
+				}	
+			}
+
+			// When the user clicks on <furnitureModalClose> (x), close the modal
+			furnitureModalClose.onclick = function() {
+				modal.style.display = "none";
+			}
+
+			// When the user clicks anywhere outside of the modal, close it
+			window.onclick = function(event) {
+				if (event.target == modal) {
+					modal.style.display = "none";
+				}
+			}
+
+			// Change texture based on which button was clicked 
+			var skuTitle = document.getElementById("skuTitle");
+			var skuPrice = document.getElementById("skuPrice");
+			var skuLink  = document.getElementById("skuLink");
+
+			document.getElementById('yanchi').onclick = function() {
+				floor.material.needsUpdate = true;
+				textureLoader.load( "textures/text1.jpg", function(map) {
+					floor.material.map = map;
+					skuTitle.textContent = "Yanchi Bamboo";
+					skuLink.href = "https://www.builddirect.com/p/p--15000100";
+					skuPrice.innerHTML = "From $2.49 /sq ft";
+				});
+			};
+
+			document.getElementById('lamton').onclick = function() {
+				floor.material.needsUpdate = true;
+				textureLoader.load( "textures/text2.jpg", function(map) {
+					floor.material.map = map;
+					skuTitle.innerHTML = "Lamton laminate";
+					skuLink.href = "https://www.builddirect.com/p/p--10074934";
+					skuPrice.innerHTML = "From $3.24 /sq ft";
+				});
+			};
+
+			document.getElementById('kaska').onclick = function() {
+				floor.material.needsUpdate = true;
+				textureLoader.load( "textures/text3.jpg", function(map) {
+					floor.material.map = map;
+					skuTitle.innerHTML = "Kaska Grey";
+					skuLink.href = "https://www.builddirect.com/p/p--10082587";
+					skuPrice.innerHTML = "From $2.99 /sq ft";
+				});
+			};
+
+			document.getElementById('sampleButton').onclick = function() {
+				alert("TBC?");
+			};
+
+			function animate() {
+				controls.update();
+				requestAnimationFrame (animate); 
+				renderer.render (scene, camera);
+			}
+
+		</script>
+
+	</body>
+</html>
